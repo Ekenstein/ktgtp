@@ -10,13 +10,12 @@ import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlin.io.path.name
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 
 interface GtpConsole {
     fun send(command: GtpCommand, timeout: Duration): GtpResponse<String>
 }
 
-private class GtpConsoleImpl(val process: Process) : GtpConsole {
+class DefaultGtpConsole(private val process: Process) : GtpConsole {
     private val stdin = process.inputStream.bufferedReader()
     private val stdout = process.outputStream.bufferedWriter()
     private var stop = false
@@ -54,6 +53,15 @@ private class GtpConsoleImpl(val process: Process) : GtpConsole {
     private val lock = Semaphore(1)
 
     override fun send(command: GtpCommand, timeout: Duration): GtpResponse<String> {
+        lock.acquire()
+        return try {
+            sendCommand(command)
+        } finally {
+            lock.release()
+        }
+    }
+
+    private fun sendCommand(command: GtpCommand): GtpResponse<String> {
         tailrec fun pollResponse(): String {
             return when (val response = responses.poll()) {
                 null -> pollResponse()
@@ -61,36 +69,42 @@ private class GtpConsoleImpl(val process: Process) : GtpConsole {
             }
         }
 
-        lock.acquire()
-        return try {
-            stdout.write(command.encodeToString())
-            stdout.flush()
-            val response = pollResponse()
+        stdout.write(command.encodeToString())
+        stdout.flush()
+        val response = pollResponse()
 
-            if (response.startsWith("=")) {
-                GtpResponse.Success(response.substring(1).trim())
-            } else if (response.startsWith("?")) {
-                GtpResponse.Failure(response.substring(1).trim())
-            } else {
-                error("Couldn't recognize the response '$response'")
+        return if (response.startsWith("=")) {
+            GtpResponse.Success(response.substring(1).trim())
+        } else if (response.startsWith("?")) {
+            GtpResponse.Failure(response.substring(1).trim())
+        } else {
+            error("Couldn't recognize the response '$response'")
+        }
+    }
+
+    fun stop() {
+        if (stop) {
+            return
+        }
+
+        lock.acquire()
+        try {
+            if (!stop) {
+                sendCommand(GtpCommand("quit"))
+                stop = true
+                readerThread.interrupt()
+                readerThread.join()
+
+                process.destroy()
             }
         } finally {
             lock.release()
         }
     }
-
-    fun stop() {
-        send(GtpCommand("quit"), 1.seconds)
-        stop = true
-        readerThread.interrupt()
-        readerThread.join()
-
-        process.destroy()
-    }
 }
 
 @OptIn(ExperimentalContracts::class)
-fun gtpConsole(command: String, vararg args: String, block: GtpConsole.() -> Unit) {
+inline fun gtpConsole(command: String, vararg args: String, block: GtpConsole.() -> Unit) {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
     }
@@ -98,12 +112,12 @@ fun gtpConsole(command: String, vararg args: String, block: GtpConsole.() -> Uni
     val process = ProcessBuilder(command, *args)
         .apply { redirectErrorStream(true) }
         .start()
-    val console = GtpConsoleImpl(process).apply(block)
-    console.stop()
+
+    DefaultGtpConsole(process).apply(block).stop()
 }
 
 @OptIn(ExperimentalContracts::class)
-fun gtpConsole(path: Path, vararg args: String, block: GtpConsole.() -> Unit) {
+inline fun gtpConsole(path: Path, vararg args: String, block: GtpConsole.() -> Unit) {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
     }
@@ -112,7 +126,5 @@ fun gtpConsole(path: Path, vararg args: String, block: GtpConsole.() -> Unit) {
         .directory(path.parent.toFile())
         .start()
 
-    val console = GtpConsoleImpl(process)
-    console.block()
-    console.stop()
+    DefaultGtpConsole(process).apply(block).stop()
 }

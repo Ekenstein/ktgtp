@@ -125,14 +125,4 @@ class GtpTest {
             assertTrue(protocolVersion().isSuccess())
         }
     }
-
-    @Test
-    fun `can save information outside of the block`() {
-        var name: String? = null
-        gtpConsole("gnugo", "--mode", "gtp") {
-            name = name().getOrNull()
-        }
-
-        assertEquals("GNU Go", name)
-    }
 }
