@@ -11,7 +11,7 @@ plugins {
 }
 
 group = "com.github.ekenstein"
-version = "0.1.1"
+version = "0.1.0"
 val kotlinJvmTarget = "1.8"
 val junitVersion by extra("5.8.2")
 val kotlinVersion by extra("1.7.0")
