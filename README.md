@@ -48,7 +48,7 @@ fun main() {
 ```kotlin
 fun main() {
    // well, there are some ways you can get around that
-   gtpConsole("/path/to/your/gnugo", "--mode", "gtp") {
+   gtpConsole(Path.of("/path/to/your/gnugo"), "--mode", "gtp") {
        // is one way
    }
    
