@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
+import kotlin.io.path.toPath
 import kotlin.time.Duration.Companion.seconds
 
 class GtpTest {
@@ -125,4 +126,17 @@ class GtpTest {
             assertTrue(protocolVersion().isSuccess())
         }
     }
+
+    @Test
+    fun `can load sgf`() {
+        val path = getResourcePath("/3bn6-gokifu-20220324-Byun_Sangil-Gu_Zihao.sgf")
+        gnuGo {
+            assertTrue(loadSgf(path).isSuccess())
+        }
+    }
+
+    private fun getResourcePath(path: String) = GtpTest::class.java.getResource(path)
+        ?.toURI()
+        ?.toPath()
+        ?: error("There is no file at $path")
 }

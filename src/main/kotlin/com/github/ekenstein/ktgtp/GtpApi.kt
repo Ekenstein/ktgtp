@@ -1,5 +1,6 @@
 package com.github.ekenstein.ktgtp
 
+import java.nio.file.Path
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -32,3 +33,15 @@ fun GtpConsole.boardSize(boardSize: Int, timeout: Duration = defaultTimeout) =
 
 fun GtpConsole.komi(komi: Double, timeout: Duration = defaultTimeout) =
     send(GtpCommand("komi", GtpValue.Float(komi)), timeout).toUnit()
+
+fun GtpConsole.loadSgf(sgf: Path, moveNumber: Int? = null, timeout: Duration = defaultTimeout) =
+    send(
+        GtpCommand(
+            "loadsgf",
+            listOfNotNull(
+                GtpValue.String(sgf.toAbsolutePath().toString()),
+                moveNumber?.let { GtpValue.Int(it) }
+            )
+        ),
+        timeout
+    ).toUnit()
