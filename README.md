@@ -35,7 +35,7 @@ fun main() {
       // Note the kotlin time construction here. Since we
       // are talking I/O here we can't really guarantee that we always get an answer.
       // In that case we can interrupt the command after a certain amount of time, in this case after 1 second.
-      val someValue: Int? = send(command, 1.seconds).flatMap {
+      val someValue: Int? = send(command, 1.seconds).map {
          // and since you are constructing your own command here, maybe you know how to convert the response
          // from a string to a more user-friendly type?
          it.toInt()
