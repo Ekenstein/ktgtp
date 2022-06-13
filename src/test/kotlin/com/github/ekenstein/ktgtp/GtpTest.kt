@@ -231,18 +231,6 @@ class GtpTest {
         }
     }
 
-    @Test
-    fun `can communicate with gtp over sockets`() {
-        val process = ProcessBuilder("gnugo", "--mode", "gtp", "--gtp-listen", "localhost:5000").start()
-        try {
-            gtpConsole("127.0.0.1", 5000) {
-                assertTrue(listCommands().isSuccess())
-            }
-        } finally {
-            process.destroy()
-        }
-    }
-
     private fun getResourcePath(path: String) = GtpTest::class.java.getResource(path)
         ?.toURI()
         ?.toPath()
