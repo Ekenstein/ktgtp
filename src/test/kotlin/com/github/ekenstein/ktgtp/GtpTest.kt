@@ -25,7 +25,7 @@ class GtpTest {
     )
 
     private fun gnuGo(block: GtpConsole.() -> Unit) {
-        gtpConsole("gnugo", "--mode", "gtp") {
+        gtpConsole("gnugo", "--mode", "gtp", "--seed", "42") {
             block()
         }
     }
@@ -225,18 +225,21 @@ class GtpTest {
     }
 
     @Test
-    fun `can check final status`() {
-        val path = getResourcePath("/3bn6-gokifu-20220324-Byun_Sangil-Gu_Zihao.sgf")
+    fun `can change time settings`() {
         gnuGo {
-            assertTrue(loadSgf(path).isSuccess())
-            assertTrue(finalStatusList(StoneStatus.Alive).isSuccess())
+            assertTrue(timeSettings(300, 30, 5).isSuccess())
         }
     }
 
     @Test
-    fun `can change time settings`() {
-        gnuGo {
-            assertTrue(timeSettings(300, 30, 5).isSuccess())
+    fun `can communicate with gtp over sockets`() {
+        val process = ProcessBuilder("gnugo", "--mode", "gtp", "--gtp-listen", "localhost:5000").start()
+        try {
+            gtpConsole("127.0.0.1", 5000) {
+                assertTrue(listCommands().isSuccess())
+            }
+        } finally {
+            process.destroy()
         }
     }
 

@@ -51,19 +51,17 @@ fun main() {
    gtpConsole(Path.of("/path/to/your/gnugo"), "--mode", "gtp") {
        // is one way
    }
+    
+   // or maybe you want to talk TCP/IP?
+   gtpConsole("127.0.0.1", 1337) {
+       // \o/
+   }
    
    // or if you want to fiddle around yourself by creating a process and all that kind of stuff
    // you can always do;
    val process = ProcessBuilder(...).start()
-   
-   // be aware that the the DefaultGtpConsole will be reading/writing from stdin and stdout so don't
-   // try to be fancy
-   val console = DefaultGtpConsole(process)
-   
-   // You're on your own now champ.
-   console.listCommands()
-   
-   // but I'd recommend stopping your console to at least let us clean up some threads and kill the engine.
-   console.stop()
+   PipedGtpConsole(process).use {
+       it.listCommands()
+   }
 }
 ```

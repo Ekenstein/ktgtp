@@ -1,6 +1,9 @@
 package com.github.ekenstein.ktgtp
 
 import java.io.BufferedReader
+import java.io.BufferedWriter
+import java.io.Closeable
+import java.net.Socket
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Semaphore
@@ -14,7 +17,7 @@ import kotlin.time.Duration
 /**
  * Represents the scope of a gtp engine.
  */
-interface GtpConsole {
+interface GtpConsole : Closeable {
     /**
      * Send the [command] to the gtp engine and returns the response of the gtp engine.
      * Will throw if the gtp engine hasn't responded within the given [timeout] duration.
@@ -26,19 +29,18 @@ interface GtpConsole {
     fun send(command: GtpCommand, timeout: Duration): GtpResponse<String>
 }
 
-class DefaultGtpConsole(private val process: Process) : GtpConsole {
-    private val stdin = process.inputStream.bufferedReader()
-    private val stdout = process.outputStream.bufferedWriter()
+abstract class BaseGtpConsole(
+    private val stdin: BufferedReader,
+    private val stdout: BufferedWriter
+) : GtpConsole {
+    private val responses = ConcurrentLinkedQueue<String>()
     private var stop = false
 
-    private val responses = ConcurrentLinkedQueue<String>()
-
-    private val readerThread = thread(start = true) {
-        tailrec fun BufferedReader.read(builder: StringBuilder): String {
-            if (stop) {
-                return builder.toString()
-            }
-            return when (val i = read()) {
+    private tailrec fun BufferedReader.read(builder: StringBuilder): String {
+        return if (stop) {
+            builder.toString()
+        } else {
+            when (val i = read()) {
                 -1 -> {
                     builder.toString()
                 }
@@ -52,7 +54,9 @@ class DefaultGtpConsole(private val process: Process) : GtpConsole {
                 }
             }
         }
+    }
 
+    private val readerThread = thread(start = true) {
         while (!stop) {
             val response = stdin.read(StringBuilder())
             if (response.isNotBlank()) {
@@ -94,7 +98,7 @@ class DefaultGtpConsole(private val process: Process) : GtpConsole {
         }
     }
 
-    fun stop() {
+    override fun close() {
         if (stop) {
             return
         }
@@ -108,12 +112,28 @@ class DefaultGtpConsole(private val process: Process) : GtpConsole {
                 try {
                     readerThread.join()
                 } catch (_: InterruptedException) { }
-
-                process.destroy()
             }
         } finally {
             lock.release()
         }
+    }
+}
+
+class SocketGtpConsole(
+    private val socket: Socket
+) : BaseGtpConsole(socket.getInputStream().bufferedReader(), socket.getOutputStream().bufferedWriter()) {
+    override fun close() {
+        super.close()
+        socket.close()
+    }
+}
+
+class PipedGtpConsole(
+    private val process: Process
+) : BaseGtpConsole(process.inputStream.bufferedReader(), process.outputStream.bufferedWriter()) {
+    override fun close() {
+        super.close()
+        process.destroy()
     }
 }
 
@@ -133,7 +153,7 @@ inline fun gtpConsole(command: String, vararg args: String, block: GtpConsole.()
         .apply { redirectErrorStream(true) }
         .start()
 
-    DefaultGtpConsole(process).apply(block).stop()
+    PipedGtpConsole(process).use(block)
 }
 
 /**
@@ -152,5 +172,17 @@ inline fun gtpConsole(path: Path, vararg args: String, block: GtpConsole.() -> U
         .directory(path.parent.toFile())
         .start()
 
-    DefaultGtpConsole(process).apply(block).stop()
+    PipedGtpConsole(process).use(block)
+}
+
+/**
+ * Starts a console for a GTP engine using sockets. When exiting the given [block], the gtp engine will be terminated.
+ */
+@OptIn(ExperimentalContracts::class)
+inline fun gtpConsole(host: String, port: Int, block: GtpConsole.() -> Unit) {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+    val client = Socket(host, port)
+    SocketGtpConsole(client).use(block)
 }
