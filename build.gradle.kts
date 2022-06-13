@@ -8,6 +8,7 @@ plugins {
     kotlin("jvm") version "1.7.0"
     id("org.jlleitschuh.gradle.ktlint") version "10.3.0"
     id("com.github.ben-manes.versions") version "0.42.0"
+    `maven-publish`
 }
 
 group = "com.github.ekenstein"
@@ -79,6 +80,30 @@ tasks {
 
 ktlint {
     version.set("0.45.2")
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("ktgtp") {
+            groupId = project.group.toString()
+            artifactId = "ktgtp"
+            version = project.version.toString()
+            from(components["kotlin"])
+            artifact(tasks.kotlinSourcesJar)
+
+            pom {
+                name.set("ktgtp")
+                description.set("GTP engine communication DSL")
+                url.set("https://github.com/Ekenstein/ktgtp")
+                licenses {
+                    license {
+                        name.set("MIT")
+                        url.set("https://github.com/Ekenstein/ktgtp/blob/main/LICENSE")
+                    }
+                }
+            }
+        }
+    }
 }
 
 class UpgradeToUnstableFilter : com.github.benmanes.gradle.versions.updates.resolutionstrategy.ComponentFilter {
