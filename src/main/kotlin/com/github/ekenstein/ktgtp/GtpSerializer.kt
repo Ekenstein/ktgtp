@@ -26,7 +26,12 @@ private fun GtpValue.encodeToString(): String = when (this) {
     is GtpValue.String -> value
     GtpValue.Vertex.Pass -> "pass"
     is GtpValue.Vertex.Point -> {
-        val cx = ((x - 1) + 'a'.code).toChar().uppercase()
+        // 'i' is an invalid coordinate.
+        val cx = if (x >= 9) {
+            (x + 'a'.code).toChar().uppercase()
+        } else {
+            ((x - 1) + 'a'.code).toChar().uppercase()
+        }
         "$cx$y"
     }
 }

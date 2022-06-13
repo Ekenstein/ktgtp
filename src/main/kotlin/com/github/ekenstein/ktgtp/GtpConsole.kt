@@ -11,7 +11,18 @@ import kotlin.contracts.contract
 import kotlin.io.path.name
 import kotlin.time.Duration
 
+/**
+ * Represents the scope of a gtp engine.
+ */
 interface GtpConsole {
+    /**
+     * Send the [command] to the gtp engine and returns the response of the gtp engine.
+     * Will throw if the gtp engine hasn't responded within the given [timeout] duration.
+     *
+     * @param command The command to send to the gtp engine.
+     * @param timeout The max duration to wait for the gtp engine to respond.
+     * @return [GtpResponse] from the engine which can represent either a failure or a success.
+     */
     fun send(command: GtpCommand, timeout: Duration): GtpResponse<String>
 }
 
@@ -69,7 +80,8 @@ class DefaultGtpConsole(private val process: Process) : GtpConsole {
             }
         }
 
-        stdout.write(command.encodeToString())
+        val serialized = command.encodeToString()
+        stdout.write(serialized)
         stdout.flush()
         val response = pollResponse()
 
@@ -93,7 +105,9 @@ class DefaultGtpConsole(private val process: Process) : GtpConsole {
                 sendCommand(GtpCommand("quit"))
                 stop = true
                 readerThread.interrupt()
-                readerThread.join()
+                try {
+                    readerThread.join()
+                } catch (_: InterruptedException) { }
 
                 process.destroy()
             }
@@ -103,6 +117,12 @@ class DefaultGtpConsole(private val process: Process) : GtpConsole {
     }
 }
 
+/**
+ * Start a console for a GTP engine. When exiting the given [block], the gtp engine will be terminated.
+ * @param command The command to start the gtp engine. E.g. "gnugo"
+ * @param args The args to pass to the gtp engine. E.g. "--mode", "gtp"
+ * @param block The scope of the gtp engine.
+ */
 @OptIn(ExperimentalContracts::class)
 inline fun gtpConsole(command: String, vararg args: String, block: GtpConsole.() -> Unit) {
     contract {
@@ -116,6 +136,12 @@ inline fun gtpConsole(command: String, vararg args: String, block: GtpConsole.()
     DefaultGtpConsole(process).apply(block).stop()
 }
 
+/**
+ * Start a console for a GTP engine. When exiting the given [block], the gtp engine will be terminated.
+ * @param path The path to the gtp engine to start. E.g. Path.of("/home/user/gnugo/gnugo")
+ * @param args The args to pass to the gtp engine. E.g. "--mode", "gtp"
+ * @param block The scope of the gtp engine.
+ */
 @OptIn(ExperimentalContracts::class)
 inline fun gtpConsole(path: Path, vararg args: String, block: GtpConsole.() -> Unit) {
     contract {

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import kotlin.io.path.toPath
+import kotlin.test.assertNotNull
 import kotlin.time.Duration.Companion.seconds
 
 class GtpTest {
@@ -104,6 +105,13 @@ class GtpTest {
     }
 
     @Test
+    fun `can play a 9,9 coordinate`() {
+        gnuGo {
+            assertTrue(play(GtpValue.black, GtpValue.point(9, 9)).isSuccess())
+        }
+    }
+
+    @Test
     fun `can not place a stone on another stone`() {
         gnuGo {
             play(GtpValue.black, GtpValue.point(3, 3))
@@ -132,6 +140,103 @@ class GtpTest {
         val path = getResourcePath("/3bn6-gokifu-20220324-Byun_Sangil-Gu_Zihao.sgf")
         gnuGo {
             assertTrue(loadSgf(path).isSuccess())
+            val board = showBoard().getOrNull()
+            assertNotNull(board)
+        }
+    }
+
+    @Test
+    fun `can place fixed handicap`() {
+        gnuGo {
+            val vertices = fixedHandicap(2).getOrNull().orEmpty()
+            val expectedVertices = setOf(
+                GtpValue.point(4, 4),
+                GtpValue.point(16, 16)
+            )
+            assertEquals(expectedVertices, vertices)
+        }
+    }
+
+    @Test
+    fun `can not place fixed handicap if the board is not empty`() {
+        gnuGo {
+            play(GtpValue.black, GtpValue.point(3, 3))
+            assertFalse(fixedHandicap(3).isSuccess())
+        }
+    }
+
+    @Test
+    fun `can not place an invalid number of handicap stones`() {
+        gnuGo {
+            boardSize(19)
+            assertFalse(fixedHandicap(10).isSuccess())
+        }
+    }
+
+    @Test
+    fun `can place free handicap`() {
+        gnuGo {
+            assertTrue(placeFreeHandicap(3).isSuccess())
+        }
+    }
+
+    @Test
+    fun `can set free handicap`() {
+        gnuGo {
+            assertTrue(setFreeHandicap(setOf(GtpValue.point(4, 4), GtpValue.point(5, 5))).isSuccess())
+            assertFalse(play(GtpValue.white, GtpValue.point(4, 4)).isSuccess())
+            assertFalse(play(GtpValue.white, GtpValue.point(5, 5)).isSuccess())
+        }
+    }
+
+    @Test
+    fun `can clear board`() {
+        gnuGo {
+            assertTrue(clearBoard().isSuccess())
+        }
+    }
+
+    @Test
+    fun `can generate move`() {
+        gnuGo {
+            assertTrue(genMove(GtpValue.black).isSuccess())
+        }
+    }
+
+    @Test
+    fun `can do regression generation of a move`() {
+        gnuGo {
+            val move = regGenMove(GtpValue.black).getOrNull()
+            assertNotNull(move)
+            when (move) {
+                is GeneratedMove.Move -> assertTrue(play(GtpValue.black, move.vertex).isSuccess())
+                GeneratedMove.Resign -> {}
+            }
+        }
+    }
+
+    @Test
+    fun `can show the board`() {
+        gnuGo {
+            val board = showBoard().getOrNull()
+            assertNotNull(board)
+            println(board)
+        }
+    }
+
+    @Test
+    fun `can check final status`() {
+        val path = getResourcePath("/3bn6-gokifu-20220324-Byun_Sangil-Gu_Zihao.sgf")
+        gnuGo {
+            assertTrue(loadSgf(path).isSuccess())
+            assertTrue(finalStatusList(StoneStatus.Alive).isSuccess())
+        }
+    }
+
+    @Test
+    fun `can change time settings`() {
+        gnuGo {
+            assertTrue(timeSettings(300, 30, 5).isSuccess())
         }
     }
 
