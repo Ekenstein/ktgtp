@@ -1,7 +1,24 @@
 # ktgtp
+[![](https://jitpack.io/v/Ekenstein/ktgtp.svg)](https://jitpack.io/#Ekenstein/ktgtp)
+
 Once again a Go-related kotlin project. This project enables the user to communicate synchronously with a GTP engine, e.g. GnuGo, Leela Zero and what not.
 
 ### Get started
+First off, add ktgtp as a dependency to your project
+```kotlin
+repositories {
+    maven {
+        url = uri("https://jitpack.io")
+    }
+}
+
+dependencies {
+    implementation("com.github.Ekenstein:ktgtp:0.1.0")
+}
+```
+
+Then start writing some code
+
 ```kotlin
 fun main() {
    // It's very simple to start an engine. The following example shows how to start GNU Go.
