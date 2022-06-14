@@ -14,6 +14,9 @@ import kotlin.contracts.contract
 import kotlin.io.path.name
 import kotlin.time.Duration
 
+private const val END_OF_STREAM = -1
+private val newLines = listOf('\n', '\r')
+
 /**
  * Represents the scope of a gtp engine.
  */
@@ -33,31 +36,30 @@ abstract class BaseGtpConsole(
     private val stdin: BufferedReader,
     private val stdout: BufferedWriter
 ) : GtpConsole {
+    private val writeLock = Semaphore(1)
     private val responses = ConcurrentLinkedQueue<String>()
-    private var stop = false
+    private var isClosed = false
 
-    private tailrec fun BufferedReader.read(builder: StringBuilder): String {
-        return if (stop) {
-            builder.toString()
-        } else {
-            when (val i = read()) {
-                -1 -> {
+    private tailrec fun BufferedReader.read(builder: StringBuilder): String = if (isClosed) {
+        builder.toString()
+    } else {
+        when (val i = read()) {
+            END_OF_STREAM -> {
+                builder.toString()
+            }
+            else -> {
+                val c = i.toChar()
+                if (c in newLines && newLines.any(builder::endsWith)) {
                     builder.toString()
-                }
-                else -> {
-                    val c = i.toChar()
-                    if (c in listOf('\n', '\r') && (builder.endsWith('\n') || builder.endsWith('\r'))) {
-                        builder.toString()
-                    } else {
-                        read(builder.append(c))
-                    }
+                } else {
+                    read(builder.append(c))
                 }
             }
         }
     }
 
     private val readerThread = thread(start = true) {
-        while (!stop) {
+        while (!isClosed) {
             val response = stdin.read(StringBuilder())
             if (response.isNotBlank()) {
                 responses.add(response)
@@ -65,14 +67,16 @@ abstract class BaseGtpConsole(
         }
     }
 
-    private val lock = Semaphore(1)
-
     override fun send(command: GtpCommand, timeout: Duration): GtpResponse<String> {
-        lock.acquire()
+        check(!isClosed) {
+            "The GTP console has been closed"
+        }
+
+        writeLock.acquire()
         return try {
             sendCommand(command)
         } finally {
-            lock.release()
+            writeLock.release()
         }
     }
 
@@ -99,22 +103,22 @@ abstract class BaseGtpConsole(
     }
 
     override fun close() {
-        if (stop) {
+        if (isClosed) {
             return
         }
 
-        lock.acquire()
+        writeLock.acquire()
         try {
-            if (!stop) {
+            if (!isClosed) {
                 sendCommand(GtpCommand("quit"))
-                stop = true
+                isClosed = true
                 readerThread.interrupt()
                 try {
                     readerThread.join()
                 } catch (_: InterruptedException) { }
             }
         } finally {
-            lock.release()
+            writeLock.release()
         }
     }
 }
