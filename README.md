@@ -13,7 +13,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.Ekenstein:ktgtp:0.1.0")
+    implementation("com.github.Ekenstein:ktgtp:0.1.1")
 }
 ```
 
