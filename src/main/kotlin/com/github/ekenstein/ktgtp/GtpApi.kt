@@ -2,30 +2,29 @@ package com.github.ekenstein.ktgtp
 
 import java.nio.file.Path
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 
-private val defaultTimeout = 1.seconds
+private val defaultTimeout: Duration? = null
 
 /**
  * Asks the gtp engine to list the available commands. On success a list of commands will be sent.
  */
-fun GtpConsole.listCommands(timeout: Duration = defaultTimeout) = send(GtpCommand("list_commands"), timeout)
+fun GtpConsole.listCommands(timeout: Duration? = defaultTimeout) = send(GtpCommand("list_commands"), timeout)
     .map { it.split("\n").toSet() }
 
 /**
  * The board configuration and the number of captured stones are reset to the state before the last move.
  * The last move is removed from the move history.
  */
-fun GtpConsole.undo(timeout: Duration = defaultTimeout) = send(GtpCommand("undo"), timeout).toUnit()
+fun GtpConsole.undo(timeout: Duration? = defaultTimeout) = send(GtpCommand("undo"), timeout).toUnit()
 
-fun GtpConsole.protocolVersion(timeout: Duration = defaultTimeout) =
+fun GtpConsole.protocolVersion(timeout: Duration? = defaultTimeout) =
     send(GtpCommand("protocol_version"), timeout).map { it.toInt() }
 
-fun GtpConsole.name(timeout: Duration = defaultTimeout) = send(GtpCommand("name"), timeout)
+fun GtpConsole.name(timeout: Duration? = defaultTimeout) = send(GtpCommand("name"), timeout)
 
-fun GtpConsole.version(timeout: Duration = defaultTimeout) = send(GtpCommand("version"), timeout)
+fun GtpConsole.version(timeout: Duration? = defaultTimeout) = send(GtpCommand("version"), timeout)
 
-fun GtpConsole.knownCommand(commandName: String, timeout: Duration = defaultTimeout) =
+fun GtpConsole.knownCommand(commandName: String, timeout: Duration? = defaultTimeout) =
     send(GtpCommand("known_command", GtpValue.String(commandName)), timeout).map {
         it.toBooleanStrict()
     }
@@ -38,7 +37,7 @@ fun GtpConsole.knownCommand(commandName: String, timeout: Duration = defaultTime
  * @param sgf The path to the sgf file.
  * @param moveNumber Optional move number.
  */
-fun GtpConsole.loadSgf(sgf: Path, moveNumber: Int? = null, timeout: Duration = defaultTimeout) =
+fun GtpConsole.loadSgf(sgf: Path, moveNumber: Int? = null, timeout: Duration? = defaultTimeout) =
     send(
         GtpCommand(
             "loadsgf",
@@ -54,7 +53,7 @@ fun GtpConsole.loadSgf(sgf: Path, moveNumber: Int? = null, timeout: Duration = d
  * A stone of the requested color is played at the requested vertex.
  * The number of captured stones is updated if needed and the move is added to the move history.
  */
-fun GtpConsole.play(color: GtpValue.Color, move: GtpValue.Vertex, timeout: Duration = defaultTimeout) = send(
+fun GtpConsole.play(color: GtpValue.Color, move: GtpValue.Vertex, timeout: Duration? = defaultTimeout) = send(
     GtpCommand("play", GtpValue.Move(color, move)),
     timeout
 ).toUnit()
@@ -63,24 +62,24 @@ fun GtpConsole.play(color: GtpValue.Color, move: GtpValue.Vertex, timeout: Durat
  * The board is cleared, the number of captured stones is reset to zero for both colors
  * and the move history is reset to empty.
  */
-fun GtpConsole.clearBoard(timeout: Duration = defaultTimeout) = send(GtpCommand("clear_board"), timeout)
+fun GtpConsole.clearBoard(timeout: Duration? = defaultTimeout) = send(GtpCommand("clear_board"), timeout)
 
 /**
  * The board size is changed. The board configuration, number of captured stones, and move history become arbitrary.
  */
-fun GtpConsole.boardSize(boardSize: Int, timeout: Duration = defaultTimeout) =
+fun GtpConsole.boardSize(boardSize: Int, timeout: Duration? = defaultTimeout) =
     send(GtpCommand("boardsize", GtpValue.Int(boardSize)), timeout)
 
 /**
  * Komi is changed.
  */
-fun GtpConsole.komi(komi: Double, timeout: Duration = defaultTimeout) =
+fun GtpConsole.komi(komi: Double, timeout: Duration? = defaultTimeout) =
     send(GtpCommand("komi", GtpValue.Float(komi)), timeout).toUnit()
 
 /**
  * Handicap stones are placed on the board
  */
-fun GtpConsole.fixedHandicap(numberOfStones: Int, timeout: Duration = defaultTimeout) =
+fun GtpConsole.fixedHandicap(numberOfStones: Int, timeout: Duration? = defaultTimeout) =
     send(GtpCommand("fixed_handicap", GtpValue.Int(numberOfStones)), timeout).map {
         it.split(" ").map(GtpValue.Vertex::from).toSet()
     }
@@ -88,7 +87,7 @@ fun GtpConsole.fixedHandicap(numberOfStones: Int, timeout: Duration = defaultTim
 /**
  * Handicap stones are placed on the board on the vertices the engine prefers.
  */
-fun GtpConsole.placeFreeHandicap(numberOfStones: Int, timeout: Duration = defaultTimeout) =
+fun GtpConsole.placeFreeHandicap(numberOfStones: Int, timeout: Duration? = defaultTimeout) =
     send(GtpCommand("place_free_handicap", GtpValue.Int(numberOfStones)), timeout).map {
         it.split(" ").map(GtpValue.Vertex::from).toSet()
     }
@@ -96,14 +95,14 @@ fun GtpConsole.placeFreeHandicap(numberOfStones: Int, timeout: Duration = defaul
 /**
  * Handicap stones are placed on the vertices as requested.
  */
-fun GtpConsole.setFreeHandicap(stones: Set<GtpValue.Vertex.Point>, timeout: Duration = defaultTimeout) =
+fun GtpConsole.setFreeHandicap(stones: Set<GtpValue.Vertex.Point>, timeout: Duration? = defaultTimeout) =
     send(GtpCommand("set_free_handicap", *stones.toTypedArray()), timeout).toUnit()
 
 /**
  * A stone of the requested color is played where the engine chooses. The number of captured stones is updated
  * if needed and the move is added to the move history.
  */
-fun GtpConsole.genMove(color: GtpValue.Color, timeout: Duration = defaultTimeout) =
+fun GtpConsole.genMove(color: GtpValue.Color, timeout: Duration? = defaultTimeout) =
     send(GtpCommand("genmove", color), timeout).map {
         GeneratedMove.from(it)
     }
@@ -111,7 +110,7 @@ fun GtpConsole.genMove(color: GtpValue.Color, timeout: Duration = defaultTimeout
 /**
  * This command differs from genmove in that it does not play the generated move.
  */
-fun GtpConsole.regGenMove(color: GtpValue.Color, timeout: Duration = defaultTimeout) =
+fun GtpConsole.regGenMove(color: GtpValue.Color, timeout: Duration? = defaultTimeout) =
     send(GtpCommand("reg_genmove", color), timeout).map {
         GeneratedMove.from(it)
     }
@@ -119,7 +118,7 @@ fun GtpConsole.regGenMove(color: GtpValue.Color, timeout: Duration = defaultTime
 /**
  * The engine draws the board as it likes.
  */
-fun GtpConsole.showBoard(timeout: Duration = defaultTimeout) = send(GtpCommand("showboard"), timeout)
+fun GtpConsole.showBoard(timeout: Duration? = defaultTimeout) = send(GtpCommand("showboard"), timeout)
 
 /**
  * The time settings are changed.
@@ -127,7 +126,7 @@ fun GtpConsole.showBoard(timeout: Duration = defaultTimeout) = send(GtpCommand("
  * @param byoYomiTime Byo yomi time measured in seconds
  * @param byoYomiStones Number of stones per byo yomi period.
  */
-fun GtpConsole.timeSettings(mainTime: Int, byoYomiTime: Int, byoYomiStones: Int, timeout: Duration = defaultTimeout) =
+fun GtpConsole.timeSettings(mainTime: Int, byoYomiTime: Int, byoYomiStones: Int, timeout: Duration? = defaultTimeout) =
     send(
         GtpCommand(
             "time_settings",
@@ -144,7 +143,7 @@ fun GtpConsole.timeSettings(mainTime: Int, byoYomiTime: Int, byoYomiStones: Int,
  * @param time Number of seconds remaining
  * @param stones Number of stones remaining
  */
-fun GtpConsole.timeLeft(color: GtpValue.Color, time: Int, stones: Int, timeout: Duration = defaultTimeout) =
+fun GtpConsole.timeLeft(color: GtpValue.Color, time: Int, stones: Int, timeout: Duration? = defaultTimeout) =
     send(
         GtpCommand(
             "time_left",
@@ -155,11 +154,11 @@ fun GtpConsole.timeLeft(color: GtpValue.Color, time: Int, stones: Int, timeout: 
         timeout
     ).toUnit()
 
-fun GtpConsole.finalScore(timeout: Duration = defaultTimeout) = send(GtpCommand("final_score"), timeout)
+fun GtpConsole.finalScore(timeout: Duration? = defaultTimeout) = send(GtpCommand("final_score"), timeout)
 
 enum class StoneStatus { Alive, Seki, Dead }
 
-fun GtpConsole.finalStatusList(status: StoneStatus, timeout: Duration = defaultTimeout) = send(
+fun GtpConsole.finalStatusList(status: StoneStatus, timeout: Duration? = defaultTimeout) = send(
     GtpCommand(
         "final_status_list",
         when (status) {

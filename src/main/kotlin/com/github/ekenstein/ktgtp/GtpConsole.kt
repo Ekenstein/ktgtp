@@ -25,11 +25,13 @@ private val newLines = listOf('\n', '\r')
 interface GtpConsole : Closeable {
     /**
      * Send the [command] to the gtp engine and returns the response of the gtp engine.
-     * Will throw if the gtp engine hasn't responded within the given [timeout] duration.
+     * Will throw [IllegalStateException] if the gtp engine hasn't responded within the given [timeout] duration.
      *
      * @param command The command to send to the gtp engine.
      * @param timeout The max duration to wait for the gtp engine to respond. If null, wait until response.
      * @return [GtpResponse] from the engine which can represent either a failure or a success.
+     * @throws [GtpException.EngineTimedOut] If the engine hasn't responded within the given [timeout] duration.
+     * @throws [GtpException.EngineClosed] If trying to send a command when the engine has been closed.
      */
     fun send(command: GtpCommand, timeout: Duration?): GtpResponse<String>
 }
@@ -74,11 +76,14 @@ abstract class BaseGtpConsole(
         }
     }
 
-    override fun send(command: GtpCommand, timeout: Duration?): GtpResponse<String> = lockWriting {
-        check(!isClosed) {
-            "The GTP console has been closed"
+    private fun throwIfClosed() {
+        if (isClosed) {
+            throw GtpException.EngineClosed
         }
+    }
 
+    override fun send(command: GtpCommand, timeout: Duration?): GtpResponse<String> = lockWriting {
+        throwIfClosed()
         sendCommand(command, timeout)
     }
 
@@ -87,7 +92,7 @@ abstract class BaseGtpConsole(
 
         return response?.trim()
             ?: if (stopAt != null && Instant.now() >= stopAt) {
-                error("Timed out waiting for response.")
+                throw GtpException.EngineTimedOut
             } else {
                 pollResponse(stopAt)
             }

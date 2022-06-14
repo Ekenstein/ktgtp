@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
+import org.junit.jupiter.api.assertThrows
 import kotlin.io.path.toPath
 import kotlin.test.assertNotNull
 import kotlin.time.Duration.Companion.seconds
@@ -228,6 +229,15 @@ class GtpTest {
     fun `can change time settings`() {
         gnuGo {
             assertTrue(timeSettings(300, 30, 5).isSuccess())
+        }
+    }
+
+    @Test
+    fun `engine throws if timeout has been exceeded`() {
+        gnuGo {
+            assertThrows<GtpException.EngineTimedOut> {
+                send(GtpCommand("list_commands"), 0.seconds)
+            }
         }
     }
 
