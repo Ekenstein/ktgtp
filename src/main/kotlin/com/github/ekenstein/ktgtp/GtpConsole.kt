@@ -5,6 +5,7 @@ import java.io.BufferedWriter
 import java.io.Closeable
 import java.net.Socket
 import java.nio.file.Path
+import java.time.Instant
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Semaphore
 import kotlin.concurrent.thread
@@ -13,6 +14,7 @@ import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlin.io.path.name
 import kotlin.time.Duration
+import kotlin.time.DurationUnit
 
 private const val END_OF_STREAM = -1
 private val newLines = listOf('\n', '\r')
@@ -26,10 +28,10 @@ interface GtpConsole : Closeable {
      * Will throw if the gtp engine hasn't responded within the given [timeout] duration.
      *
      * @param command The command to send to the gtp engine.
-     * @param timeout The max duration to wait for the gtp engine to respond.
+     * @param timeout The max duration to wait for the gtp engine to respond. If null, wait until response.
      * @return [GtpResponse] from the engine which can represent either a failure or a success.
      */
-    fun send(command: GtpCommand, timeout: Duration): GtpResponse<String>
+    fun send(command: GtpCommand, timeout: Duration?): GtpResponse<String>
 }
 
 abstract class BaseGtpConsole(
@@ -42,18 +44,14 @@ abstract class BaseGtpConsole(
 
     private tailrec fun BufferedReader.read(builder: StringBuilder): String = if (isClosed) {
         builder.toString()
-    } else {
-        when (val i = read()) {
-            END_OF_STREAM -> {
+    } else when (val i = read()) {
+        END_OF_STREAM -> builder.toString()
+        else -> {
+            val c = i.toChar()
+            if (c in newLines && newLines.any(builder::endsWith)) {
                 builder.toString()
-            }
-            else -> {
-                val c = i.toChar()
-                if (c in newLines && newLines.any(builder::endsWith)) {
-                    builder.toString()
-                } else {
-                    read(builder.append(c))
-                }
+            } else {
+                read(builder.append(c))
             }
         }
     }
@@ -67,31 +65,43 @@ abstract class BaseGtpConsole(
         }
     }
 
-    override fun send(command: GtpCommand, timeout: Duration): GtpResponse<String> {
-        check(!isClosed) {
-            "The GTP console has been closed"
-        }
-
+    private fun <T> lockWriting(block: () -> T): T {
         writeLock.acquire()
         return try {
-            sendCommand(command)
+            block()
         } finally {
             writeLock.release()
         }
     }
 
-    private fun sendCommand(command: GtpCommand): GtpResponse<String> {
-        tailrec fun pollResponse(): String {
-            return when (val response = responses.poll()) {
-                null -> pollResponse()
-                else -> response.trim()
-            }
+    override fun send(command: GtpCommand, timeout: Duration?): GtpResponse<String> = lockWriting {
+        check(!isClosed) {
+            "The GTP console has been closed"
         }
 
+        sendCommand(command, timeout)
+    }
+
+    private tailrec fun pollResponse(stopAt: Instant?): String {
+        val response = responses.poll()
+
+        return response?.trim()
+            ?: if (stopAt != null && Instant.now() >= stopAt) {
+                error("Timed out waiting for response.")
+            } else {
+                pollResponse(stopAt)
+            }
+    }
+
+    private fun Duration.toInstant() = Instant.now().plusMillis(toLong(DurationUnit.MILLISECONDS))
+
+    private fun sendCommand(command: GtpCommand, timeout: Duration?): GtpResponse<String> {
         val serialized = command.encodeToString()
         stdout.write(serialized)
         stdout.flush()
-        val response = pollResponse()
+
+        val stopAt = timeout?.toInstant()
+        val response = pollResponse(stopAt)
 
         return if (response.startsWith("=")) {
             GtpResponse.Success(response.substring(1).trim())
@@ -107,18 +117,15 @@ abstract class BaseGtpConsole(
             return
         }
 
-        writeLock.acquire()
-        try {
+        lockWriting {
             if (!isClosed) {
-                sendCommand(GtpCommand("quit"))
+                sendCommand(GtpCommand("quit"), null)
                 isClosed = true
                 readerThread.interrupt()
                 try {
                     readerThread.join()
                 } catch (_: InterruptedException) { }
             }
-        } finally {
-            writeLock.release()
         }
     }
 }
