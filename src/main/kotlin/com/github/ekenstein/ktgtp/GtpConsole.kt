@@ -6,8 +6,9 @@ import java.io.Closeable
 import java.net.Socket
 import java.nio.file.Path
 import java.time.Instant
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -18,6 +19,10 @@ import kotlin.time.DurationUnit
 
 private const val END_OF_STREAM = -1
 private val newLines = listOf('\n', '\r')
+private val responseRegex = Regex("""^([=?])(\d+)(\s([.\s\S]*))?""")
+private const val GROUP_RESPONSE_TYPE = 1
+private const val GROUP_RESPONSE_ID = 2
+private const val GROUP_RESPONSE_MESSAGE = 4
 
 /**
  * Represents the scope of a gtp engine.
@@ -41,7 +46,8 @@ abstract class BaseGtpConsole(
     private val stdout: BufferedWriter
 ) : GtpConsole {
     private val writeLock = Semaphore(1)
-    private val responses = ConcurrentLinkedQueue<String>()
+    private val nextId = AtomicInteger(0)
+    private val responses = ConcurrentHashMap<Int, GtpResponse<String>>()
     private var isClosed = false
 
     private tailrec fun BufferedReader.read(builder: StringBuilder): String = if (isClosed) {
@@ -58,11 +64,29 @@ abstract class BaseGtpConsole(
         }
     }
 
+    private fun parseResponse(string: String): Pair<Int, GtpResponse<String>>? {
+        val matches = responseRegex.matchEntire(string)
+            ?: return null
+
+        val type = matches.groupValues[GROUP_RESPONSE_TYPE]
+        val id = matches.groupValues[GROUP_RESPONSE_ID].toInt()
+        val message = matches.groups[GROUP_RESPONSE_MESSAGE]?.value?.trim() ?: ""
+
+        val response = when (type) {
+            "?" -> GtpResponse.Failure(message)
+            "=" -> GtpResponse.Success(message)
+            else -> error("Couldn't recognize the response type '$type'")
+        }
+
+        return id to response
+    }
+
     private val readerThread = thread(start = true) {
         while (!isClosed) {
-            val response = stdin.read(StringBuilder())
-            if (response.isNotBlank()) {
-                responses.add(response)
+            val string = stdin.read(StringBuilder())
+            val response = parseResponse(string)
+            if (response != null) {
+                responses[response.first] = response.second
             }
         }
     }
@@ -87,34 +111,27 @@ abstract class BaseGtpConsole(
         sendCommand(command, timeout)
     }
 
-    private tailrec fun pollResponse(stopAt: Instant?): String {
-        val response = responses.poll()
+    private tailrec fun pollResponse(id: Int, stopAt: Instant?): GtpResponse<String> {
+        val response = responses[id]
 
-        return response?.trim()
+        return response
             ?: if (stopAt != null && Instant.now() >= stopAt) {
                 throw GtpException.EngineTimedOut
             } else {
-                pollResponse(stopAt)
+                pollResponse(id, stopAt)
             }
     }
 
     private fun Duration.toInstant() = Instant.now().plusMillis(toLong(DurationUnit.MILLISECONDS))
 
     private fun sendCommand(command: GtpCommand, timeout: Duration?): GtpResponse<String> {
-        val serialized = command.encodeToString()
+        val id = nextId.getAndIncrement()
+        val serialized = command.encodeToString(id)
         stdout.write(serialized)
         stdout.flush()
 
         val stopAt = timeout?.toInstant()
-        val response = pollResponse(stopAt)
-
-        return if (response.startsWith("=")) {
-            GtpResponse.Success(response.substring(1).trim())
-        } else if (response.startsWith("?")) {
-            GtpResponse.Failure(response.substring(1).trim())
-        } else {
-            error("Couldn't recognize the response '$response'")
-        }
+        return pollResponse(id, stopAt)
     }
 
     override fun close() {

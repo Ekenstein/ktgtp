@@ -4,9 +4,10 @@ import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.text.NumberFormat
 
-fun GtpCommand.encodeToString(): String {
+fun GtpCommand.encodeToString(id: Int?): String {
     val args = args.joinToString(" ") { it.encodeToString() }
-    return "$command $args\n"
+    val sId = id?.let { "$it " } ?: ""
+    return "$sId$command $args\n"
 }
 
 private val numberFormatter: NumberFormat = DecimalFormat().apply {
