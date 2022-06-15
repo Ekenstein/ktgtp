@@ -151,6 +151,9 @@ abstract class BaseGtpConsole(
                 try {
                     readerThread.join()
                 } catch (_: InterruptedException) { }
+
+                stdin.close()
+                stdout.close()
             }
         }
     }
