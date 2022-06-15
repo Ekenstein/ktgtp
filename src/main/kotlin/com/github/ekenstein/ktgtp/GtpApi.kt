@@ -62,19 +62,26 @@ fun GtpConsole.play(color: GtpValue.Color, move: GtpValue.Vertex, timeout: Durat
  * The board is cleared, the number of captured stones is reset to zero for both colors
  * and the move history is reset to empty.
  */
-fun GtpConsole.clearBoard(timeout: Duration? = defaultTimeout) = send(GtpCommand("clear_board"), timeout)
+fun GtpConsole.clearBoard(timeout: Duration? = defaultTimeout) = send(
+    GtpCommand("clear_board"),
+    timeout
+).toUnit()
 
 /**
  * The board size is changed. The board configuration, number of captured stones, and move history become arbitrary.
  */
-fun GtpConsole.boardSize(boardSize: Int, timeout: Duration? = defaultTimeout) =
-    send(GtpCommand("boardsize", GtpValue.Int(boardSize)), timeout)
+fun GtpConsole.boardSize(boardSize: Int, timeout: Duration? = defaultTimeout) = send(
+    GtpCommand("boardsize", GtpValue.Int(boardSize)),
+    timeout
+).toUnit()
 
 /**
  * Komi is changed.
  */
-fun GtpConsole.komi(komi: Double, timeout: Duration? = defaultTimeout) =
-    send(GtpCommand("komi", GtpValue.Float(komi)), timeout).toUnit()
+fun GtpConsole.komi(komi: Double, timeout: Duration? = defaultTimeout) = send(
+    GtpCommand("komi", GtpValue.Float(komi)),
+    timeout
+).toUnit()
 
 /**
  * Handicap stones are placed on the board
@@ -95,8 +102,10 @@ fun GtpConsole.placeFreeHandicap(numberOfStones: Int, timeout: Duration? = defau
 /**
  * Handicap stones are placed on the vertices as requested.
  */
-fun GtpConsole.setFreeHandicap(stones: Set<GtpValue.Vertex.Point>, timeout: Duration? = defaultTimeout) =
-    send(GtpCommand("set_free_handicap", *stones.toTypedArray()), timeout).toUnit()
+fun GtpConsole.setFreeHandicap(stones: Set<GtpValue.Vertex.Point>, timeout: Duration? = defaultTimeout) = send(
+    GtpCommand("set_free_handicap", *stones.toTypedArray()),
+    timeout
+).toUnit()
 
 /**
  * A stone of the requested color is played where the engine chooses. The number of captured stones is updated
