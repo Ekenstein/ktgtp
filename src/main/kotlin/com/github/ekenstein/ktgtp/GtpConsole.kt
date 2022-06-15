@@ -112,14 +112,18 @@ abstract class BaseGtpConsole(
     }
 
     private tailrec fun pollResponse(id: Int, stopAt: Instant?): GtpResponse<String> {
-        val response = responses[id]
+        if (readerThread.isAlive) {
+            val response = responses[id]
 
-        return response
-            ?: if (stopAt != null && Instant.now() >= stopAt) {
-                throw GtpException.EngineTimedOut
-            } else {
-                pollResponse(id, stopAt)
-            }
+            return response
+                ?: if (stopAt != null && Instant.now() >= stopAt) {
+                    throw GtpException.EngineTimedOut
+                } else {
+                    pollResponse(id, stopAt)
+                }
+        } else {
+            error("The reader thread has unexpectedly died")
+        }
     }
 
     private fun Duration.toInstant() = Instant.now().plusMillis(toLong(DurationUnit.MILLISECONDS))
