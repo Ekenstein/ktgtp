@@ -57,6 +57,12 @@ fun main() {
          // from a string to a more user-friendly type?
          it.toInt()
       }.getOrNull() // if you can't be bothered with the response type, just get the value or null.
+      
+      // Maybe you want to chain commands, well you can do that
+      knownCommand("is_this_known").flatMap {
+          // yepp it was
+          send("is_this_known", GtpValue.Vertex.Point(3, 3), null /* never timeout */)
+      }
    }
 }
 ```
