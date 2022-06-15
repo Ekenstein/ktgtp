@@ -80,5 +80,12 @@ fun main() {
    PipedGtpConsole(process).use {
        it.listCommands()
    }
+   
+   // ... or if you think that the DSL for creating a socket GTP console doesn't provide enough
+   // options for your use-case you can always create your own socket connection...
+   val socket = Socket(...)
+   SocketGtpConsole(socket).use {
+      it.listCommands()
+   }
 }
 ```
