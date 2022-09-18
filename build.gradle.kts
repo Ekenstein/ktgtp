@@ -6,7 +6,7 @@ import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.inputStream
 
 plugins {
-    kotlin("jvm") version "1.7.0"
+    kotlin("jvm") version "1.7.10"
     id("org.jlleitschuh.gradle.ktlint") version "11.0.0"
     id("com.github.ben-manes.versions") version "0.42.0"
     `maven-publish`
@@ -113,7 +113,7 @@ publishing {
 
 class IgnoredDependencyFilter : ComponentFilter {
     private val ignoredDependencies = mapOf(
-            "ktlint" to listOf("0.46.0", "0.46.1", "0.46.2", "0.47.1") // doesn't currently work.
+            "ktlint" to listOf("0.46.0", "0.46.1", "0.46.2", "0.47.0", "0.47.1") // doesn't currently work.
     )
 
     override fun reject(p0: ComponentSelectionWithCurrent): Boolean {
