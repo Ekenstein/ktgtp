@@ -1,5 +1,5 @@
-import com.github.benmanes.gradle.versions.updates.resolutionstrategy.ComponentSelectionWithCurrent
 import com.github.benmanes.gradle.versions.updates.resolutionstrategy.ComponentFilter
+import com.github.benmanes.gradle.versions.updates.resolutionstrategy.ComponentSelectionWithCurrent
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.nio.file.Paths
 import kotlin.io.path.ExperimentalPathApi
@@ -113,7 +113,7 @@ publishing {
 
 class IgnoredDependencyFilter : ComponentFilter {
     private val ignoredDependencies = mapOf(
-            "ktlint" to listOf("0.46.0", "0.46.1", "0.46.2", "0.47.0", "0.47.1") // doesn't currently work.
+        "ktlint" to listOf("0.46.0", "0.46.1", "0.46.2", "0.47.0", "0.47.1") // doesn't currently work.
     )
 
     override fun reject(p0: ComponentSelectionWithCurrent): Boolean {
