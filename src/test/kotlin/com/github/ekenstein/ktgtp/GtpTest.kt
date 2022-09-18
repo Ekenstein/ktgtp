@@ -241,22 +241,7 @@ class GtpTest {
             }
         }
     }
-
-    @Test
-    fun `katago`() {
-        katago(Path.of("C:\\katago\\katago.exe"), Path.of("C:\\katago\\kata1-b40c256-s11840935168-d2898845681.bin.gz")) {
-            val commands = listCommands().getOrNull()
-            println(commands)
-            val command = GtpCommand("kata-raw-nn")
-            val r1 = send(GtpCommand("kata-analyze"), null)
-            println(r1)
-            val r2 = send(GtpCommand("kata-genmove_analyze"), 3.seconds)
-            println(r2)
-            val result = send(command, 3.seconds)
-            println(result)
-        }
-    }
-
+    
     private fun getResourcePath(path: String) = GtpTest::class.java.getResource(path)
         ?.toURI()
         ?.toPath()
