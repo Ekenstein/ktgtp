@@ -23,6 +23,8 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
+    implementation("io.github.microutils", "kotlin-logging-jvm", "2.0.11")
+    implementation("ch.qos.logback", "logback-classic", "1.2.6")
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter", "junit-jupiter-params", junitVersion)
     testImplementation("org.junit.jupiter", "junit-jupiter-api", junitVersion)

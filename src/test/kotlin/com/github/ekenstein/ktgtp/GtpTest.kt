@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.assertThrows
+import java.nio.file.Path
 import kotlin.io.path.toPath
 import kotlin.test.assertNotNull
 import kotlin.time.Duration.Companion.seconds
@@ -238,6 +239,21 @@ class GtpTest {
             assertThrows<GtpException.EngineTimedOut> {
                 send(GtpCommand("list_commands"), 0.seconds)
             }
+        }
+    }
+
+    @Test
+    fun `katago`() {
+        katago(Path.of("C:\\katago\\katago.exe"), Path.of("C:\\katago\\kata1-b40c256-s11840935168-d2898845681.bin.gz")) {
+            val commands = listCommands().getOrNull()
+            println(commands)
+            val command = GtpCommand("kata-raw-nn")
+            val r1 = send(GtpCommand("kata-analyze"), null)
+            println(r1)
+            val r2 = send(GtpCommand("kata-genmove_analyze"), 3.seconds)
+            println(r2)
+            val result = send(command, 3.seconds)
+            println(result)
         }
     }
 

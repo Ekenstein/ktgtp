@@ -4,12 +4,13 @@ import java.nio.file.Path
 import kotlin.time.Duration
 
 private val defaultTimeout: Duration? = null
+private val lineSeparator = System.getProperty("line.separator")
 
 /**
  * Asks the gtp engine to list the available commands. On success a list of commands will be sent.
  */
 fun GtpConsole.listCommands(timeout: Duration? = defaultTimeout) = send(GtpCommand("list_commands"), timeout)
-    .map { it.split("\n").toSet() }
+    .map { it.split(lineSeparator).toSet() }
 
 /**
  * The board configuration and the number of captured stones are reset to the state before the last move.
@@ -178,7 +179,7 @@ fun GtpConsole.finalStatusList(status: StoneStatus, timeout: Duration? = default
     ),
     timeout
 ).map { stones ->
-    val groups = stones.split("\n").map { it.split(" ") }
+    val groups = stones.split(lineSeparator).map { it.split(" ") }
     groups.map { group ->
         group.map(GtpValue.Vertex::from).toSet()
     }
