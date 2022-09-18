@@ -1,5 +1,6 @@
 package com.github.ekenstein.ktgtp
 
+import mu.KotlinLogging.logger
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.Closeable
@@ -13,13 +14,14 @@ import kotlin.concurrent.thread
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
-import kotlin.io.path.name
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 
+private val logger = logger { }
+
 private const val END_OF_STREAM = -1
-private val newLines = listOf('\n', '\r')
 private val responseRegex = Regex("""^([=?])(\d+)(\s([.\s\S]*))?""")
+private val lineSeparator = System.getProperty("line.separator")
 private const val GROUP_RESPONSE_TYPE = 1
 private const val GROUP_RESPONSE_ID = 2
 private const val GROUP_RESPONSE_MESSAGE = 4
@@ -50,16 +52,21 @@ abstract class BaseGtpConsole(
     private val responses = ConcurrentHashMap<Int, GtpResponse<String>>()
     private var isClosed = false
 
-    private tailrec fun BufferedReader.read(builder: StringBuilder): String = if (isClosed) {
-        builder.toString()
+    private tailrec fun BufferedReader.read(builder: StringBuilder): Pair<String, String> = if (isClosed) {
+        builder.toString() to ""
     } else when (val i = read()) {
-        END_OF_STREAM -> builder.toString()
+        END_OF_STREAM -> builder.toString() to ""
         else -> {
             val c = i.toChar()
-            if (c in newLines && newLines.any(builder::endsWith)) {
-                builder.toString()
+            if (c in listOf('=', '?')) {
+                builder.toString() to c.toString()
             } else {
-                read(builder.append(c))
+                val nextBuilder = builder.append(c)
+                if (builder.endsWith("$lineSeparator$lineSeparator")) {
+                    builder.toString() to ""
+                } else {
+                    read(nextBuilder)
+                }
             }
         }
     }
@@ -82,12 +89,15 @@ abstract class BaseGtpConsole(
     }
 
     private val readerThread = thread(start = true) {
+        var buffer = ""
         while (!isClosed) {
-            val string = stdin.read(StringBuilder())
+            val (string, next) = stdin.read(StringBuilder(buffer))
+            logger.info(string)
             val response = parseResponse(string)
             if (response != null) {
                 responses[response.first] = response.second
             }
+            buffer = next
         }
     }
 
@@ -207,9 +217,8 @@ inline fun gtpConsole(path: Path, vararg args: String, block: GtpConsole.() -> U
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
     }
-    val process = ProcessBuilder(path.name, *args)
+    val process = ProcessBuilder(path.toString(), *args)
         .apply { redirectErrorStream(true) }
-        .directory(path.parent.toFile())
         .start()
 
     PipedGtpConsole(process).use(block)

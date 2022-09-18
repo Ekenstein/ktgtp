@@ -1,3 +1,4 @@
+import com.github.benmanes.gradle.versions.updates.resolutionstrategy.ComponentFilter
 import com.github.benmanes.gradle.versions.updates.resolutionstrategy.ComponentSelectionWithCurrent
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.nio.file.Paths
@@ -5,8 +6,8 @@ import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.inputStream
 
 plugins {
-    kotlin("jvm") version "1.7.0"
-    id("org.jlleitschuh.gradle.ktlint") version "10.3.0"
+    kotlin("jvm") version "1.7.10"
+    id("org.jlleitschuh.gradle.ktlint") version "11.0.0"
     id("com.github.ben-manes.versions") version "0.42.0"
     `maven-publish`
 }
@@ -14,8 +15,8 @@ plugins {
 group = "com.github.ekenstein"
 version = "0.1.1"
 val kotlinJvmTarget = "1.8"
-val junitVersion by extra("5.8.2")
-val kotlinVersion by extra("1.7.0")
+val junitVersion by extra("5.9.0")
+val kotlinVersion by extra("1.7.10")
 
 repositories {
     mavenCentral()
@@ -23,6 +24,8 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
+    implementation("io.github.microutils", "kotlin-logging-jvm", "2.1.23")
+    implementation("ch.qos.logback", "logback-classic", "1.4.1")
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter", "junit-jupiter-params", junitVersion)
     testImplementation("org.junit.jupiter", "junit-jupiter-api", junitVersion)
@@ -31,7 +34,9 @@ dependencies {
 
 tasks {
     dependencyUpdates {
-        rejectVersionIf(UpgradeToUnstableFilter())
+        rejectVersionIf {
+            UpgradeToUnstableFilter().reject(this) || IgnoredDependencyFilter().reject(this)
+        }
     }
 
     val dependencyUpdateSentinel = register<DependencyUpdateSentinel>("dependencyUpdateSentinel", buildDir)
@@ -106,7 +111,17 @@ publishing {
     }
 }
 
-class UpgradeToUnstableFilter : com.github.benmanes.gradle.versions.updates.resolutionstrategy.ComponentFilter {
+class IgnoredDependencyFilter : ComponentFilter {
+    private val ignoredDependencies = mapOf(
+        "ktlint" to listOf("0.46.0", "0.46.1", "0.46.2", "0.47.0", "0.47.1") // doesn't currently work.
+    )
+
+    override fun reject(p0: ComponentSelectionWithCurrent): Boolean {
+        return ignoredDependencies[p0.candidate.module].orEmpty().contains(p0.candidate.version)
+    }
+}
+
+class UpgradeToUnstableFilter : ComponentFilter {
     override fun reject(cs: ComponentSelectionWithCurrent) = reject(cs.currentVersion, cs.candidate.version)
 
     private fun reject(old: String, new: String): Boolean {
