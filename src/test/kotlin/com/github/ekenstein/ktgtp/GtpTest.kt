@@ -241,7 +241,7 @@ class GtpTest {
             }
         }
     }
-    
+
     private fun getResourcePath(path: String) = GtpTest::class.java.getResource(path)
         ?.toURI()
         ?.toPath()
